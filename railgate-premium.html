@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RailGate India — Smart Railway Gate Status System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050508;
+  --bg2:#0a0a0f;
+  --bg3:#0f0f18;
+  --bg4:#14141f;
+  --glass:rgba(255,255,255,0.04);
+  --glass2:rgba(255,255,255,0.07);
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.14);
+  --text:#f0f0f8;
+  --muted:rgba(240,240,248,0.5);
+  --dim:rgba(240,240,248,0.25);
+  --green:#00ff88;
+  --green-d:#00cc6a;
+  --green-glow:rgba(0,255,136,0.25);
+  --red:#ff3355;
+  --red-d:#cc2244;
+  --red-glow:rgba(255,51,85,0.25);
+  --yellow:#ffcc00;
+  --yellow-d:#ccaa00;
+  --yellow-glow:rgba(255,204,0,0.25);
+  --blue:#00aaff;
+  --blue-d:#0088cc;
+  --blue-glow:rgba(0,170,255,0.25);
+  --accent:#7c4dff;
+  --accent-glow:rgba(124,77,255,0.3);
+  --font-head:'Orbitron',sans-serif;
+  --font-body:'Sora',sans-serif;
+  --r:12px;
+  --r2:18px;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--font-body);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+  cursor:none;
+}
+/* CURSOR */
+#cursor{position:fixed;width:12px;height:12px;border-radius:50%;background:var(--accent);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .1s,width .15s,height .15s,background .15s;box-shadow:0 0 14px 4px var(--accent-glow)}
+#cursor-ring{position:fixed;width:36px;height:36px;border-radius:50%;border:1.5px solid rgba(124,77,255,0.5);pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:all .18s ease;mix-blend-mode:screen}
+body.hovering #cursor{width:18px;height:18px;background:var(--blue);box-shadow:0 0 22px 6px var(--blue-glow)}
+body.hovering #cursor-ring{width:52px;height:52px;border-color:rgba(0,170,255,0.4)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--accent);border-radius:2px}
+
+/* NOISE OVERLAY */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:1;opacity:0.4
+}
+
+/* GRID LINES */
+body::after{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(124,77,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(124,77,255,0.03) 1px,transparent 1px);
+  background-size:60px 60px;
+  pointer-events:none;z-index:0
+}
+
+/* TOPBAR */
+.topbar{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 32px;
+  background:rgba(5,5,8,0.8);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+}
+.logo{
+  font-family:var(--font-head);
+  font-size:15px;font-weight:700;letter-spacing:3px;
+  background:linear-gradient(90deg,var(--green),var(--blue));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  text-transform:uppercase;
+}
+.logo span{color:var(--red);-webkit-text-fill-color:var(--red)}
+.nav{display:flex;gap:6px;align-items:center}
+.nav-btn{
+  font-family:var(--font-body);font-size:12px;letter-spacing:1px;
+  padding:7px 16px;border-radius:50px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);cursor:pointer;
+  transition:all .2s;text-transform:uppercase;font-weight:500
+}
+.nav-btn:hover,.nav-btn.active{
+  background:var(--glass2);color:var(--text);
+  border-color:var(--border2);
+  box-shadow:0 0 12px rgba(124,77,255,0.2)
+}
+.nav-btn.active{border-color:var(--accent);color:var(--accent)}
+.nav-badge{
+  background:var(--red);color:#fff;font-size:9px;font-weight:700;
+  border-radius:50%;width:16px;height:16px;display:inline-flex;
+  align-items:center;justify-content:center;margin-left:4px
+}
+
+/* PAGES */
+.page{display:none;padding-top:72px;min-height:100vh;position:relative;z-index:2}
+.page.active{display:block}
+
+/* HERO */
+.hero{
+  min-height:calc(100vh - 72px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 24px 40px;text-align:center;position:relative;overflow:hidden
+}
+.hero-glow{
+  position:absolute;top:20%;left:50%;transform:translateX(-50%);
+  width:800px;height:400px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(124,77,255,0.12),transparent 70%);
+  pointer-events:none
+}
+.hero-tag{
+  font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--accent);
+  font-weight:600;border:1px solid rgba(124,77,255,0.3);
+  padding:5px 16px;border-radius:50px;margin-bottom:28px;
+  background:rgba(124,77,255,0.1);
+  animation:fadeUp .8s ease both
+}
+.hero-h1{
+  font-family:var(--font-head);font-size:clamp(36px,7vw,80px);
+  font-weight:900;line-height:1.05;margin-bottom:20px;
+  text-transform:uppercase;letter-spacing:2px;
+  animation:fadeUp .8s .1s ease both
+}
+.hero-h1 .line1{
+  background:linear-gradient(135deg,#fff 30%,rgba(255,255,255,0.6));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent
+}
+.hero-h1 .line2{
+  background:linear-gradient(90deg,var(--green),var(--blue));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  display:block
+}
+.hero-sub{
+  font-size:16px;color:var(--muted);max-width:560px;line-height:1.8;
+  margin-bottom:40px;animation:fadeUp .8s .2s ease both
+}
+.hero-btns{
+  display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+  animation:fadeUp .8s .3s ease both;margin-bottom:64px
+}
+.btn-glow{
+  padding:14px 32px;border-radius:50px;font-family:var(--font-body);
+  font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+  cursor:pointer;transition:all .25s;border:none;position:relative;overflow:hidden
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--accent),#5b2bcc);
+  color:#fff;box-shadow:0 0 24px var(--accent-glow)
+}
+.btn-primary:hover{transform:scale(1.06);box-shadow:0 0 40px var(--accent-glow),0 4px 20px rgba(0,0,0,0.5)}
+.btn-outline{
+  background:transparent;color:var(--text);
+  border:1.5px solid var(--border2)
+}
+.btn-outline:hover{border-color:var(--green);color:var(--green);transform:scale(1.04);box-shadow:0 0 20px var(--green-glow)}
+
+/* LIVE STATUS STRIP */
+.live-strip{
+  width:100%;max-width:1100px;margin:0 auto;
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;
+  animation:fadeUp .8s .4s ease both;padding:0 16px
+}
+.live-stat{
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:var(--r2);padding:18px 20px;text-align:center;
+  transition:all .3s;position:relative;overflow:hidden
+}
+.live-stat::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 50% 0,var(--c-glow),transparent 70%);
+  opacity:0.5;pointer-events:none
+}
+.live-stat:hover{transform:translateY(-4px);border-color:var(--c-border)}
+.live-stat .stat-num{
+  font-family:var(--font-head);font-size:32px;font-weight:700;
+  color:var(--c-color);text-shadow:0 0 16px var(--c-glow);margin-bottom:6px
+}
+.live-stat .stat-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.stat-open{--c-color:var(--green);--c-glow:var(--green-glow);--c-border:var(--green)}
+.stat-closed{--c-color:var(--red);--c-glow:var(--red-glow);--c-border:var(--red)}
+.stat-closing{--c-color:var(--yellow);--c-glow:var(--yellow-glow);--c-border:var(--yellow)}
+.stat-total{--c-color:var(--blue);--c-glow:var(--blue-glow);--c-border:var(--blue)}
+
+/* SEARCH PAGE */
+.search-page{padding:80px 24px 40px;max-width:900px;margin:0 auto}
+.page-title{
+  font-family:var(--font-head);font-size:clamp(20px,4vw,36px);
+  font-weight:700;text-transform:uppercase;letter-spacing:2px;
+  margin-bottom:8px;
+}
+.page-sub{font-size:14px;color:var(--muted);margin-bottom:36px}
+.search-cascade{
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:var(--r2);padding:28px;margin-bottom:28px;
+  position:relative;overflow:hidden
+}
+.search-cascade::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),var(--blue),var(--green));
+}
+.cascade-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px
+}
+.sel-wrap{position:relative}
+.sel-label{
+  font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px;display:block;font-weight:600
+}
+.sel-wrap select{
+  width:100%;padding:12px 36px 12px 14px;
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--r);color:var(--text);
+  font-family:var(--font-body);font-size:13px;
+  appearance:none;cursor:pointer;transition:all .2s;
+  outline:none
+}
+.sel-wrap select:focus,.sel-wrap select:hover{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(124,77,255,0.15)
+}
+.sel-wrap::after{
+  content:'▾';position:absolute;right:12px;bottom:13px;
+  color:var(--muted);pointer-events:none;font-size:13px
+}
+.filter-strip{
+  display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px
+}
+.filter-pill{
+  padding:7px 16px;border-radius:50px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:11px;
+  letter-spacing:1px;text-transform:uppercase;cursor:pointer;
+  transition:all .2s;font-family:var(--font-body);font-weight:500
+}
+.filter-pill:hover,.filter-pill.active{
+  background:var(--glass2);border-color:var(--accent);color:var(--accent)
+}
+.gates-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:18px
+}
+
+/* GATE CARD */
+.gate-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r2);padding:22px;position:relative;
+  overflow:hidden;transition:all .3s;cursor:pointer
+}
+.gate-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 50% 0%,var(--card-glow),transparent 65%);
+  opacity:0;transition:opacity .3s;pointer-events:none
+}
+.gate-card:hover{transform:translateY(-5px);border-color:var(--card-border)}
+.gate-card:hover::before{opacity:1}
+.gate-card-open{--card-glow:var(--green-glow);--card-border:rgba(0,255,136,0.4)}
+.gate-card-closed{--card-glow:var(--red-glow);--card-border:rgba(255,51,85,0.4)}
+.gate-card-closing{--card-glow:var(--yellow-glow);--card-border:rgba(255,204,0,0.4)}
+.gate-card-opening{--card-glow:var(--blue-glow);--card-border:rgba(0,170,255,0.4)}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.card-id{
+  font-family:var(--font-head);font-size:10px;letter-spacing:3px;
+  color:var(--muted);margin-bottom:4px
+}
+.card-name{font-size:15px;font-weight:600;line-height:1.3}
+.card-area{font-size:11px;color:var(--muted);margin-top:3px}
+.status-badge{
+  padding:5px 12px;border-radius:50px;font-size:10px;
+  font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  white-space:nowrap;flex-shrink:0
+}
+.badge-open{background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.3);text-shadow:0 0 8px rgba(0,255,136,0.5)}
+.badge-closed{background:rgba(255,51,85,0.12);color:var(--red);border:1px solid rgba(255,51,85,0.3);text-shadow:0 0 8px rgba(255,51,85,0.5)}
+.badge-closing{background:rgba(255,204,0,0.12);color:var(--yellow);border:1px solid rgba(255,204,0,0.3);text-shadow:0 0 8px rgba(255,204,0,0.5)}
+.badge-opening{background:rgba(0,170,255,0.12);color:var(--blue);border:1px solid rgba(0,170,255,0.3);text-shadow:0 0 8px rgba(0,170,255,0.5)}
+
+/* COUNTDOWN */
+.countdown-wrap{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;margin-bottom:14px;
+  text-align:center
+}
+.countdown-num{
+  font-family:var(--font-head);font-size:28px;font-weight:700;
+  letter-spacing:4px;line-height:1
+}
+.countdown-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.card-meta{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px
+}
+.meta-item .meta-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:2px}
+.meta-item .meta-val{font-size:12px;font-weight:500;color:var(--muted)}
+.card-footer{display:flex;align-items:center;justify-content:space-between}
+.updated-time{font-size:10px;color:var(--dim);letter-spacing:0.5px}
+.notify-btn{
+  padding:7px 16px;border-radius:50px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:10px;
+  font-weight:600;letter-spacing:1px;text-transform:uppercase;
+  cursor:pointer;transition:all .2s;font-family:var(--font-body)
+}
+.notify-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 12px rgba(124,77,255,0.2)}
+.pulse-dot{
+  display:inline-block;width:7px;height:7px;border-radius:50%;
+  margin-right:6px;vertical-align:middle;
+  animation:blink 1.4s infinite
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.dot-green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot-red{background:var(--red);box-shadow:0 0 6px var(--red)}
+.dot-yellow{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
+.dot-blue{background:var(--blue);box-shadow:0 0 6px var(--blue)}
+
+/* ADMIN */
+.admin-page{padding:80px 24px 40px;max-width:880px;margin:0 auto}
+.admin-login{
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:var(--r2);padding:36px;max-width:480px;margin:0 auto;
+  position:relative;overflow:hidden
+}
+.admin-login::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--red),var(--accent));
+}
+.form-group{margin-bottom:18px}
+.form-label{
+  display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:8px;font-weight:600
+}
+.form-input,.form-select-admin{
+  width:100%;padding:12px 16px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:var(--r);
+  color:var(--text);font-family:var(--font-body);font-size:13px;
+  outline:none;transition:all .2s
+}
+.form-input:focus,.form-select-admin:focus{
+  border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,77,255,0.15)
+}
+.admin-panel{display:none}
+.admin-panel.visible{display:block}
+.operator-header{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:var(--r2);padding:20px 24px;margin-bottom:20px
+}
+.op-name{font-size:14px;font-weight:600}
+.op-badge{
+  font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:50px;
+  background:rgba(0,255,136,0.12);color:var(--green);
+  border:1px solid rgba(0,255,136,0.3);text-transform:uppercase
+}
+.gate-selector-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:14px;margin-bottom:24px
+}
+.gate-selector-grid .sel-wrap select{background:var(--bg3)}
+.control-section{
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:var(--r2);padding:24px;margin-bottom:20px;
+  position:relative;overflow:hidden
+}
+.control-section::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),transparent)
+}
+.section-head{
+  font-family:var(--font-head);font-size:12px;letter-spacing:3px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:20px
+}
+.action-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px
+}
+.action-btn{
+  padding:16px 10px;border-radius:var(--r);border:1px solid var(--border);
+  background:var(--bg3);cursor:pointer;font-family:var(--font-body);
+  font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  transition:all .25s;display:flex;flex-direction:column;
+  align-items:center;gap:8px;color:var(--muted)
+}
+.action-btn .ab-icon{font-size:22px}
+.action-btn:hover{transform:scale(1.04)}
+.ab-open:hover{background:rgba(0,255,136,0.1);border-color:var(--green);color:var(--green);box-shadow:0 0 20px var(--green-glow)}
+.ab-close:hover{background:rgba(255,51,85,0.1);border-color:var(--red);color:var(--red);box-shadow:0 0 20px var(--red-glow)}
+.ab-closing:hover{background:rgba(255,204,0,0.1);border-color:var(--yellow);color:var(--yellow);box-shadow:0 0 20px var(--yellow-glow)}
+.ab-opening:hover{background:rgba(0,170,255,0.1);border-color:var(--blue);color:var(--blue);box-shadow:0 0 20px var(--blue-glow)}
+.ab-delay:hover{background:rgba(255,120,0,0.1);border-color:#ff7800;color:#ff7800;box-shadow:0 0 20px rgba(255,120,0,0.25)}
+.ab-emergency{background:rgba(255,51,85,0.07);border-color:rgba(255,51,85,0.3);color:var(--red)}
+.ab-emergency:hover{background:rgba(255,51,85,0.2);border-color:var(--red);box-shadow:0 0 28px var(--red-glow);transform:scale(1.04)}
+.live-gate-status{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--r);padding:20px;text-align:center;margin-bottom:20px
+}
+.live-gate-name{font-family:var(--font-head);font-size:13px;letter-spacing:2px;margin-bottom:12px;color:var(--muted)}
+.live-gate-cd{font-family:var(--font-head);font-size:48px;font-weight:700;letter-spacing:6px;line-height:1}
+.live-gate-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-top:6px}
+.op-log{
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:var(--r2);padding:20px
+}
+.log-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 0;border-bottom:1px solid var(--border)
+}
+.log-row:last-child{border:none}
+.log-gate{font-size:13px;font-weight:500}
+.log-time{font-size:11px;color:var(--muted)}
+
+/* ANALYTICS */
+.analytics-page{padding:80px 24px 40px;max-width:1000px;margin:0 auto}
+.analytics-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:14px;margin-bottom:28px
+}
+.analytic-card{
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:var(--r2);padding:22px;position:relative;overflow:hidden;
+  transition:all .3s
+}
+.analytic-card:hover{transform:translateY(-3px);border-color:var(--border2)}
+.analytic-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 0 0,var(--a-glow),transparent 60%);
+  opacity:0.6
+}
+.analytic-num{
+  font-family:var(--font-head);font-size:36px;font-weight:700;
+  line-height:1;margin-bottom:8px;color:var(--a-color);
+  text-shadow:0 0 16px var(--a-glow)
+}
+.analytic-label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.ac-green{--a-color:var(--green);--a-glow:var(--green-glow)}
+.ac-red{--a-color:var(--red);--a-glow:var(--red-glow)}
+.ac-yellow{--a-color:var(--yellow);--a-glow:var(--yellow-glow)}
+.ac-blue{--a-color:var(--blue);--a-glow:var(--blue-glow)}
+.ac-purple{--a-color:#c084fc;--a-glow:rgba(192,132,252,0.25)}
+.peak-section{
+  background:var(--glass);border:1px solid var(--border);
+  border-radius:var(--r2);padding:24px;margin-bottom:20px
+}
+.peak-title{font-family:var(--font-head);font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:20px}
+.peak-bar-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.peak-hr{font-size:11px;color:var(--muted);width:40px;flex-shrink:0;font-family:var(--font-head);letter-spacing:1px}
+.peak-track{flex:1;height:10px;background:var(--bg3);border-radius:5px;overflow:hidden}
+.peak-fill{height:100%;border-radius:5px;transition:width 1s ease}
+.peak-pct{font-size:11px;color:var(--muted);width:36px;text-align:right;flex-shrink:0}
+.state-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+  gap:10px
+}
+.state-card{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px;transition:all .25s
+}
+.state-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.state-name{font-size:13px;font-weight:600;margin-bottom:6px}
+.state-meta{display:flex;gap:10px}
+.s-open-c{font-size:11px;color:var(--green)}
+.s-closed-c{font-size:11px;color:var(--red)}
+
+/* FOOTER */
+footer{
+  position:relative;z-index:2;
+  background:var(--bg2);border-top:1px solid var(--border);
+  padding:40px 32px 24px
+}
+.footer-inner{
+  max-width:1000px;margin:0 auto;
+  display:grid;grid-template-columns:1fr auto;gap:40px;align-items:start;
+  margin-bottom:32px
+}
+.footer-brand .logo-f{
+  font-family:var(--font-head);font-size:16px;font-weight:700;letter-spacing:3px;
+  background:linear-gradient(90deg,var(--green),var(--blue));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:10px;text-transform:uppercase
+}
+.footer-brand p{font-size:12px;color:var(--dim);max-width:280px;line-height:1.8}
+.footer-links{display:flex;gap:24px}
+.footer-links a{font-size:12px;color:var(--dim);text-decoration:none;transition:.2s}
+.footer-links a:hover{color:var(--green)}
+.footer-bottom{
+  max-width:1000px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--border);padding-top:20px;
+  font-size:11px;color:var(--dim)
+}
+.footer-bottom span{
+  background:linear-gradient(90deg,var(--green),var(--blue));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:700
+}
+
+/* NOTIFICATION TOAST */
+.toast{
+  position:fixed;bottom:28px;right:28px;z-index:1000;
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);padding:14px 18px;
+  max-width:320px;font-size:13px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.6);
+  transform:translateY(100px);opacity:0;
+  transition:all .35s cubic-bezier(.34,1.56,.64,1)
+}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.t-green{border-color:rgba(0,255,136,0.4);color:var(--green)}
+.toast.t-red{border-color:rgba(255,51,85,0.4);color:var(--red)}
+.toast.t-blue{border-color:rgba(0,170,255,0.4);color:var(--blue)}
+
+/* EMPTY STATE */
+.empty{
+  text-align:center;padding:60px 20px;
+  color:var(--dim);font-size:14px
+}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:0.5}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes scanLine{
+  0%{transform:translateY(-100%)}
+  100%{transform:translateY(100vh)}
+}
+.scan-anim{
+  position:fixed;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(124,77,255,0.6),transparent);
+  animation:scanLine 4s linear infinite;pointer-events:none;z-index:5
+}
+
+/* RESPONSIVE */
+@media(max-width:640px){
+  .topbar{padding:12px 16px}
+  .nav-btn{padding:6px 10px;font-size:10px}
+  .hero{padding:40px 16px 30px}
+  .live-strip{grid-template-columns:1fr 1fr}
+  .gates-grid{grid-template-columns:1fr}
+  .footer-inner{grid-template-columns:1fr}
+  .footer-links{flex-wrap:wrap;gap:14px}
+  .footer-bottom{flex-direction:column;gap:8px;text-align:center}
+  .analytics-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:380px){
+  .live-strip{grid-template-columns:1fr 1fr}
+  .logo{font-size:12px;letter-spacing:2px}
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+<div class="scan-anim"></div>
+
+<!-- TOPBAR -->
+<nav class="topbar">
+  <div class="logo">Rail<span style="-webkit-text-fill-color:var(--red)">Gate</span> India</div>
+  <div class="nav">
+    <button class="nav-btn active" onclick="showPage('hero')">Home</button>
+    <button class="nav-btn" onclick="showPage('search')">Search Gates</button>
+    <button class="nav-btn" onclick="showPage('admin')">Operator</button>
+    <button class="nav-btn" onclick="showPage('analytics')">Analytics</button>
+  </div>
+</nav>
+
+<!-- HERO PAGE -->
+<div id="page-hero" class="page active">
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-tag">🇮🇳 National Smart Transport System · v2.0</div>
+    <h1 class="hero-h1">
+      <span class="line1">Real-Time Railway</span>
+      <span class="line2">Gate Intelligence</span>
+    </h1>
+    <p class="hero-sub">Know before you go. Live gate status, countdown timers, and operator-controlled updates across every Indian railway crossing.</p>
+    <div class="hero-btns">
+      <button class="btn-glow btn-primary" onclick="showPage('search')">Search Your Area</button>
+      <button class="btn-glow btn-outline" onclick="showPage('admin')">Operator Login</button>
+    </div>
+    <div class="live-strip" id="hero-stats"></div>
+  </section>
+</div>
+
+<!-- SEARCH PAGE -->
+<div id="page-search" class="page">
+  <div class="search-page">
+    <div class="page-title">Find Railway Gates</div>
+    <div class="page-sub">Search by state, district, area or station across India</div>
+
+    <div class="search-cascade">
+      <div class="cascade-grid">
+        <div class="sel-wrap">
+          <span class="sel-label">State / UT</span>
+          <select id="sel-state" onchange="onStateChange()">
+            <option value="">Select State</option>
+          </select>
+        </div>
+        <div class="sel-wrap">
+          <span class="sel-label">District</span>
+          <select id="sel-district" onchange="onDistrictChange()" disabled>
+            <option value="">Select District</option>
+          </select>
+        </div>
+        <div class="sel-wrap">
+          <span class="sel-label">Area / Town</span>
+          <select id="sel-area" onchange="onAreaChange()" disabled>
+            <option value="">Select Area</option>
+          </select>
+        </div>
+        <div class="sel-wrap">
+          <span class="sel-label">Station / Gate</span>
+          <select id="sel-station" onchange="onStationChange()" disabled>
+            <option value="">Select Station</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-strip" id="filter-strip" style="display:none">
+      <button class="filter-pill active" onclick="setFilter('all',this)">All Gates</button>
+      <button class="filter-pill" onclick="setFilter('closed',this)">Currently Closed</button>
+      <button class="filter-pill" onclick="setFilter('closing',this)">Closing Soon</button>
+      <button class="filter-pill" onclick="setFilter('open',this)">Open</button>
+      <button class="filter-pill" onclick="setFilter('long-wait',this)">Long Wait</button>
+    </div>
+
+    <div id="gates-container">
+      <div class="empty">
+        <div class="empty-icon">🛤️</div>
+        Select a location above to see railway gate status
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PAGE -->
+<div id="page-admin" class="page">
+  <div class="admin-page">
+    <div class="page-title">Operator Control Panel</div>
+    <div class="page-sub">Secure gate management dashboard</div>
+
+    <div id="admin-login-wrap">
+      <div class="admin-login">
+        <div style="text-align:center;margin-bottom:28px">
+          <div style="font-size:36px;margin-bottom:12px">🔐</div>
+          <div style="font-family:var(--font-head);font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--muted)">Operator Authentication</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Operator ID</label>
+          <input class="form-input" id="op-id" placeholder="e.g. OP-SC-001" value="OP-SC-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" type="password" id="op-pass" placeholder="••••••••" value="1234">
+        </div>
+        <button class="btn-glow btn-primary" style="width:100%;margin-top:8px" onclick="adminLogin()">Access Control Panel</button>
+      </div>
+    </div>
+
+    <div id="admin-panel-wrap" class="admin-panel">
+      <div class="operator-header">
+        <div>
+          <div class="op-name" id="op-display-name">Operator: Ravi Kumar</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">Station: Secunderabad Central</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="op-badge">● Online</div>
+          <button class="nav-btn" onclick="adminLogout()">Logout</button>
+        </div>
+      </div>
+
+      <div class="gate-selector-grid">
+        <div class="sel-wrap">
+          <span class="sel-label">State</span>
+          <select class="form-select-admin" id="ad-state" onchange="adOnState()">
+            <option value="">Select State</option>
+          </select>
+        </div>
+        <div class="sel-wrap">
+          <span class="sel-label">District</span>
+          <select class="form-select-admin" id="ad-district" onchange="adOnDistrict()" disabled>
+            <option value="">Select District</option>
+          </select>
+        </div>
+        <div class="sel-wrap">
+          <span class="sel-label">Station</span>
+          <select class="form-select-admin" id="ad-station" onchange="adOnStation()" disabled>
+            <option value="">Select Station</option>
+          </select>
+        </div>
+        <div class="sel-wrap">
+          <span class="sel-label">Gate ID</span>
+          <select class="form-select-admin" id="ad-gate" onchange="adOnGate()" disabled>
+            <option value="">Select Gate</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="ad-live-status" class="live-gate-status" style="display:none">
+        <div class="live-gate-name" id="ad-gate-name">—</div>
+        <div class="live-gate-cd" id="ad-gate-cd" style="color:var(--green)">00:00</div>
+        <div class="live-gate-label" id="ad-gate-lbl" style="color:var(--muted)">SELECT A GATE</div>
+      </div>
+
+      <div class="control-section">
+        <div class="section-head">Gate Control Actions</div>
+        <div class="action-grid">
+          <button class="action-btn ab-open" onclick="setGateStatus('OPEN')">
+            <span class="ab-icon">🟢</span>Open Gate
+          </button>
+          <button class="action-btn ab-close" onclick="setGateStatus('CLOSED')">
+            <span class="ab-icon">🔴</span>Close Gate
+          </button>
+          <button class="action-btn ab-closing" onclick="setGateStatus('CLOSING')">
+            <span class="ab-icon">🟡</span>Closing Soon
+          </button>
+          <button class="action-btn ab-opening" onclick="setGateStatus('OPENING')">
+            <span class="ab-icon">🔵</span>Opening Soon
+          </button>
+          <button class="action-btn ab-delay" onclick="setGateStatus('DELAY')">
+            <span class="ab-icon">⏱️</span>Delay Notice
+          </button>
+          <button class="action-btn ab-emergency" onclick="setGateStatus('EMERGENCY')">
+            <span class="ab-icon">🚨</span>Emergency Block
+          </button>
+        </div>
+      </div>
+
+      <div class="op-log">
+        <div class="section-head" style="margin-bottom:14px">Recent Activity Log</div>
+        <div id="op-log-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYTICS PAGE -->
+<div id="page-analytics" class="page">
+  <div class="analytics-page">
+    <div class="page-title">System Analytics</div>
+    <div class="page-sub">National railway gate performance overview</div>
+    <div class="analytics-grid" id="analytics-grid"></div>
+    <div class="peak-section">
+      <div class="peak-title">Peak Closure Hours</div>
+      <div id="peak-bars"></div>
+    </div>
+    <div style="margin-bottom:20px">
+      <div class="peak-title" style="font-family:var(--font-head);font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:16px">Coverage by State</div>
+      <div class="state-grid" id="state-coverage"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="logo-f">RailGate India</div>
+      <p>Real-time railway gate status monitoring system for India. Reducing travel uncertainty, one gate at a time.</p>
+    </div>
+    <div class="footer-links">
+      <a href="#">About</a>
+      <a href="#">API Docs</a>
+      <a href="#">Contact</a>
+      <a href="#">Privacy</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 RailGate India</span>
+    <span>Built for Bharat 🇮🇳 · Smart Transport Initiative</span>
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+
+const INDIA_DATA = {
+  "Telangana": {
+    "Medchal-Malkajgiri": {
+      areas: ["Yapral","Kompally","Bowenpally","Keesara","Malkajgiri","Alwal"],
+      stations: ["Secunderabad Junction","Malkajgiri Station","Yapral Halt","Kompally Crossing"],
+    },
+    "Hyderabad": {
+      areas: ["Begumpet","Nampally","Kachiguda","Dilsukhnagar","Secunderdabad"],
+      stations: ["Hyderabad Deccan","Kachiguda Station","Nampally Station","Begumpet Halt"],
+    },
+    "Rangareddy": {
+      areas: ["LB Nagar","Uppal","Ghatkesar","Hayathnagar"],
+      stations: ["Ghatkesar Station","Uppal Crossing","LB Nagar Gate"],
+    },
+  },
+  "Maharashtra": {
+    "Pune": {
+      areas: ["Shivajinagar","Kothrud","Hadapsar","Wakad","Hinjewadi"],
+      stations: ["Pune Junction","Shivajinagar Station","Hadapsar Station","Wakad Gate"],
+    },
+    "Mumbai City": {
+      areas: ["Dadar","Bandra","Andheri","Kurla","Thane"],
+      stations: ["CST Station","Dadar Station","Bandra Station","Andheri Station"],
+    },
+    "Nagpur": {
+      areas: ["Civil Lines","Sitabuldi","Dharampeth","Ambazari"],
+      stations: ["Nagpur Junction","Itwari Station","Ajni Station"],
+    },
+  },
+  "Karnataka": {
+    "Bengaluru Urban": {
+      areas: ["Koramangala","Whitefield","Indiranagar","Jayanagar","Hebbal"],
+      stations: ["KSR Bengaluru","Cantonment Station","Whitefield Station","Hebbal Gate"],
+    },
+    "Mysuru": {
+      areas: ["Yadavagiri","Rajivnagar","Saraswathipuram"],
+      stations: ["Mysuru Junction","Narasimharaja Station"],
+    },
+  },
+  "Tamil Nadu": {
+    "Chennai": {
+      areas: ["T. Nagar","Anna Nagar","Adyar","Nungambakkam","Perambur"],
+      stations: ["Chennai Central","Chennai Egmore","Perambur Workshop","Tambaram Junction"],
+    },
+    "Coimbatore": {
+      areas: ["R.S. Puram","Peelamedu","Saibaba Colony"],
+      stations: ["Coimbatore Junction","Podanur Junction"],
+    },
+  },
+  "Uttar Pradesh": {
+    "Lucknow": {
+      areas: ["Hazratganj","Gomti Nagar","Alambagh","Charbagh"],
+      stations: ["Lucknow Charbagh","Lucknow NR","Aishbagh Station"],
+    },
+    "Kanpur": {
+      areas: ["Kidwai Nagar","Kakadeo","Civil Lines"],
+      stations: ["Kanpur Central","Govindpuri Station"],
+    },
+    "Varanasi": {
+      areas: ["Sigra","Lanka","Bhelupur"],
+      stations: ["Varanasi Junction","Manduadih Station","Kashi Station"],
+    },
+  },
+  "Delhi": {
+    "New Delhi": {
+      areas: ["Connaught Place","Karol Bagh","Paharganj","Sadar Bazaar"],
+      stations: ["New Delhi Station","Hazrat Nizamuddin","Delhi Cantt","Delhi Sarai Rohilla"],
+    },
+    "South Delhi": {
+      areas: ["Vasant Kunj","Mehrauli","Hauz Khas"],
+      stations: ["Palam Station","Saket Gate","Hauz Khas Crossing"],
+    },
+  },
+  "West Bengal": {
+    "Kolkata": {
+      areas: ["Park Street","Salt Lake","Howrah","Barasat"],
+      stations: ["Howrah Junction","Sealdah Station","Kolkata Station","Barasat Gate"],
+    },
+  },
+  "Rajasthan": {
+    "Jaipur": {
+      areas: ["Malviya Nagar","Vaishali Nagar","Mansarovar","C-Scheme"],
+      stations: ["Jaipur Junction","Durgapura Station","Gandhinagar Station"],
+    },
+  },
+  "Gujarat": {
+    "Ahmedabad": {
+      areas: ["Navrangpura","Satellite","Maninagar","Vatva"],
+      stations: ["Ahmedabad Junction","Maninagar Station","Sabarmati Station"],
+    },
+  },
+  "Punjab": {
+    "Ludhiana": {
+      areas: ["Model Town","BRS Nagar","Sarabha Nagar"],
+      stations: ["Ludhiana Junction","Sahnewal Station"],
+    },
+  },
+};
+
+const STATUS_LABELS = {OPEN:'Open',CLOSED:'Closed',CLOSING:'Closing Soon',OPENING:'Opening Soon',DELAY:'Delayed',EMERGENCY:'Emergency Block'};
+const STATUS_BADGE = {OPEN:'badge-open',CLOSED:'badge-closed',CLOSING:'badge-closing',OPENING:'badge-opening',DELAY:'badge-closing',EMERGENCY:'badge-closed'};
+const STATUS_CARD = {OPEN:'gate-card-open',CLOSED:'gate-card-closed',CLOSING:'gate-card-closing',OPENING:'gate-card-opening',DELAY:'gate-card-closing',EMERGENCY:'gate-card-closed'};
+const STATUS_DOT = {OPEN:'dot-green',CLOSED:'dot-red',CLOSING:'dot-yellow',OPENING:'dot-blue',DELAY:'dot-yellow',EMERGENCY:'dot-red'};
+const STATUS_COLOR = {OPEN:'var(--green)',CLOSED:'var(--red)',CLOSING:'var(--yellow)',OPENING:'var(--blue)',DELAY:'#ff7800',EMERGENCY:'var(--red)'};
+
+// Gate DB — in-memory simulated
+let GATES_DB = {};
+let OP_LOGS = [];
+let activeGateId = null;
+let currentFilter = 'all';
+let currentSearchState = null;
+let detailCountdown = null;
+let heroInterval = null;
+
+function makeGateId(station, n) {
+  return station.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,3) + '-G' + String(n).padStart(2,'0');
+}
+
+function seedGates() {
+  Object.entries(INDIA_DATA).forEach(([state, districts]) => {
+    Object.entries(districts).forEach(([district, data]) => {
+      data.stations.forEach((station, si) => {
+        let numGates = 2 + (si%2);
+        for(let g=1;g<=numGates;g++){
+          let id = makeGateId(station,g);
+          let statuses = ['OPEN','OPEN','OPEN','CLOSED','CLOSING','OPENING'];
+          let s = statuses[Math.floor(Math.random()*statuses.length)];
+          let avgMin = 4+Math.floor(Math.random()*8);
+          let now = Date.now();
+          let nextChange;
+          if(s==='CLOSED'||s==='OPENING') nextChange = now + (1+Math.random()*avgMin)*60000;
+          else nextChange = now + (3+Math.random()*12)*60000;
+          GATES_DB[id]={
+            id,state,district,area:data.areas[g%data.areas.length],station,
+            name:'Gate '+g,status:s,avgMin,nextChange,
+            closedAt:s==='CLOSED'?now-Math.random()*avgMin*60000:null,
+            openedAt:s==='OPEN'?now-Math.random()*600000:null,
+            lastUpdatedBy:'System',lastUpdated:now,daily:12+Math.floor(Math.random()*30)
+          };
+        }
+      });
+    });
+  });
+}
+
+function getStatus(g){
+  let now=Date.now();
+  if(g.nextChange && now > g.nextChange){
+    if(g.status==='CLOSED'||g.status==='OPENING'){
+      g.status='OPEN';g.openedAt=now;
+      g.nextChange=now+(5+Math.random()*10)*60000;
+    } else if(g.status==='OPEN'||g.status==='CLOSING'){
+      g.status='CLOSED';g.closedAt=now;
+      g.nextChange=now+(g.avgMin+Math.random()*3)*60000;
+    }
+  }
+  if(g.status==='OPEN'&&g.nextChange&&(g.nextChange-now)<120000&&(g.nextChange-now)>0) return 'CLOSING';
+  if(g.status==='CLOSED'&&g.nextChange&&(g.nextChange-now)<120000&&(g.nextChange-now)>0) return 'OPENING';
+  return g.status;
+}
+
+function fmtCD(ms){
+  if(ms<0)ms=0;
+  let s=Math.floor(ms/1000),m=Math.floor(s/60);s=s%60;
+  return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+}
+function fmtTime(ts){
+  if(!ts)return'—';
+  return new Date(ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+function sinceStr(ts){
+  if(!ts)return'—';
+  let d=Math.floor((Date.now()-ts)/1000);
+  if(d<60)return'Just now';if(d<3600)return Math.floor(d/60)+' min ago';
+  return Math.floor(d/3600)+' hr ago';
+}
+
+// ── UI INIT ───────────────────────────────────────────────────────────────────
+
+function populateStateSelects(){
+  let states = Object.keys(INDIA_DATA).sort();
+  ['sel-state','ad-state'].forEach(id=>{
+    let el = document.getElementById(id);
+    el.innerHTML='<option value="">Select State</option>';
+    states.forEach(s=>{ let o=document.createElement('option');o.value=s;o.textContent=s;el.appendChild(o); });
+  });
+}
+
+function onStateChange(){
+  let state = document.getElementById('sel-state').value;
+  let dd = document.getElementById('sel-district');
+  let da = document.getElementById('sel-area');
+  let ds = document.getElementById('sel-station');
+  dd.innerHTML='<option value="">Select District</option>';
+  da.innerHTML='<option value="">Select Area</option>';
+  ds.innerHTML='<option value="">Select Station</option>';
+  dd.disabled=!state; da.disabled=true; ds.disabled=true;
+  if(state){ Object.keys(INDIA_DATA[state]).forEach(d=>{ let o=document.createElement('option');o.value=d;o.textContent=d;dd.appendChild(o); }); }
+  document.getElementById('filter-strip').style.display='none';
+  document.getElementById('gates-container').innerHTML='<div class="empty"><div class="empty-icon">🛤️</div>Select a district to continue</div>';
+}
+function onDistrictChange(){
+  let state=document.getElementById('sel-state').value;
+  let district=document.getElementById('sel-district').value;
+  let da=document.getElementById('sel-area');
+  let ds=document.getElementById('sel-station');
+  da.innerHTML='<option value="">Select Area</option>';
+  ds.innerHTML='<option value="">Select Station</option>';
+  da.disabled=!district;ds.disabled=true;
+  if(state&&district){
+    INDIA_DATA[state][district].areas.forEach(a=>{let o=document.createElement('option');o.value=a;o.textContent=a;da.appendChild(o);});
+  }
+  showGatesForLocation(state,district,null,null);
+}
+function onAreaChange(){
+  let state=document.getElementById('sel-state').value;
+  let district=document.getElementById('sel-district').value;
+  let area=document.getElementById('sel-area').value;
+  let ds=document.getElementById('sel-station');
+  ds.innerHTML='<option value="">All Stations</option>';
+  ds.disabled=false;
+  if(state&&district){
+    INDIA_DATA[state][district].stations.forEach(s=>{let o=document.createElement('option');o.value=s;o.textContent=s;ds.appendChild(o);});
+  }
+  showGatesForLocation(state,district,area,null);
+}
+function onStationChange(){
+  let state=document.getElementById('sel-state').value;
+  let district=document.getElementById('sel-district').value;
+  let area=document.getElementById('sel-area').value;
+  let station=document.getElementById('sel-station').value;
+  showGatesForLocation(state,district,area,station);
+}
+
+function showGatesForLocation(state,district,area,station){
+  currentSearchState={state,district,area,station};
+  if(!district){ document.getElementById('filter-strip').style.display='none'; return; }
+  document.getElementById('filter-strip').style.display='flex';
+  renderGates();
+}
+
+function renderGates(){
+  let {state,district,area,station}=currentSearchState||{};
+  let gates=Object.values(GATES_DB).filter(g=>{
+    if(state&&g.state!==state)return false;
+    if(district&&g.district!==district)return false;
+    if(area&&g.area!==area)return false;
+    if(station&&g.station!==station)return false;
+    return true;
+  });
+  if(currentFilter==='closed') gates=gates.filter(g=>getStatus(g)==='CLOSED');
+  else if(currentFilter==='closing') gates=gates.filter(g=>['CLOSING','DELAY','EMERGENCY'].includes(getStatus(g)));
+  else if(currentFilter==='open') gates=gates.filter(g=>getStatus(g)==='OPEN');
+  else if(currentFilter==='long-wait') gates=gates.filter(g=>getStatus(g)==='CLOSED'&&g.nextChange&&(g.nextChange-Date.now())>240000);
+  let container=document.getElementById('gates-container');
+  if(!gates.length){ container.innerHTML='<div class="empty"><div class="empty-icon">🔍</div>No gates found for this location</div>'; return; }
+  container.innerHTML=`<div class="gates-grid">${gates.map(gateCard).join('')}</div>`;
+}
+
+function gateCard(g){
+  let s=getStatus(g);
+  let rem=g.nextChange?g.nextChange-Date.now():0;
+  let cdLabel = (s==='CLOSED'||s==='OPENING')?'Opens in':'Closes in';
+  let cdColor=STATUS_COLOR[s];
+  let dotCls=STATUS_DOT[s]||'dot-green';
+  let wt=s==='CLOSED'?fmtCD(Math.max(rem,0)):'—';
+  return `<div class="gate-card ${STATUS_CARD[s]}" onclick="">
+    <div class="card-top">
+      <div>
+        <div class="card-id">${g.id}</div>
+        <div class="card-name">${g.station} · ${g.name}</div>
+        <div class="card-area">📍 ${g.area}, ${g.district}</div>
+      </div>
+      <span class="status-badge ${STATUS_BADGE[s]}"><span class="pulse-dot ${dotCls}"></span>${STATUS_LABELS[s]}</span>
+    </div>
+    <div class="countdown-wrap">
+      <div class="countdown-num" style="color:${cdColor};text-shadow:0 0 20px ${cdColor}" id="cd-${g.id}">${fmtCD(Math.max(rem,0))}</div>
+      <div class="countdown-label">${cdLabel}</div>
+    </div>
+    <div class="card-meta">
+      <div class="meta-item"><div class="meta-label">Closed since</div><div class="meta-val">${g.closedAt?fmtTime(g.closedAt):'—'}</div></div>
+      <div class="meta-item"><div class="meta-label">Avg closure</div><div class="meta-val">${g.avgMin} min</div></div>
+      <div class="meta-item"><div class="meta-label">Expected open</div><div class="meta-val">${g.nextChange?fmtTime(g.nextChange):'—'}</div></div>
+      <div class="meta-item"><div class="meta-label">Wait time</div><div class="meta-val" style="color:${cdColor}">${s==='CLOSED'?fmtCD(Math.max(rem,0)):'—'}</div></div>
+    </div>
+    <div class="card-footer">
+      <div class="updated-time">Updated ${sinceStr(g.lastUpdated)}</div>
+      <button class="notify-btn" onclick="event.stopPropagation();subscribeGate('${g.id}')">🔔 Notify Me</button>
+    </div>
+  </div>`;
+}
+
+function setFilter(f, btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(currentSearchState) renderGates();
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────────
+
+let adminLoggedIn=false;
+let adminGateId=null;
+let adminCdInterval=null;
+
+function adminLogin(){
+  let id=document.getElementById('op-id').value.trim();
+  let pw=document.getElementById('op-pass').value;
+  if(!id){showToast('Enter operator ID','t-red');return;}
+  document.getElementById('admin-login-wrap').style.display='none';
+  document.getElementById('admin-panel-wrap').classList.add('visible');
+  document.getElementById('op-display-name').textContent='Operator: '+id;
+  adminLoggedIn=true;
+  populateAdminSelects();
+  renderOpLogs();
+  showToast('Welcome, '+id+' ✓','t-green');
+}
+function adminLogout(){
+  document.getElementById('admin-login-wrap').style.display='block';
+  document.getElementById('admin-panel-wrap').classList.remove('visible');
+  adminLoggedIn=false;
+}
+
+function populateAdminSelects(){
+  let states=Object.keys(INDIA_DATA).sort();
+  let el=document.getElementById('ad-state');
+  el.innerHTML='<option value="">Select State</option>';
+  states.forEach(s=>{let o=document.createElement('option');o.value=s;o.textContent=s;el.appendChild(o);});
+}
+function adOnState(){
+  let state=document.getElementById('ad-state').value;
+  let dd=document.getElementById('ad-district');
+  dd.innerHTML='<option value="">Select District</option>';
+  dd.disabled=!state;
+  document.getElementById('ad-station').innerHTML='<option value="">Select Station</option>';
+  document.getElementById('ad-station').disabled=true;
+  document.getElementById('ad-gate').innerHTML='<option value="">Select Gate</option>';
+  document.getElementById('ad-gate').disabled=true;
+  if(state) Object.keys(INDIA_DATA[state]).forEach(d=>{let o=document.createElement('option');o.value=d;o.textContent=d;dd.appendChild(o);});
+}
+function adOnDistrict(){
+  let state=document.getElementById('ad-state').value;
+  let district=document.getElementById('ad-district').value;
+  let ds=document.getElementById('ad-station');
+  ds.innerHTML='<option value="">Select Station</option>';
+  ds.disabled=!district;
+  document.getElementById('ad-gate').innerHTML='<option value="">Select Gate</option>';
+  document.getElementById('ad-gate').disabled=true;
+  if(state&&district) INDIA_DATA[state][district].stations.forEach(s=>{let o=document.createElement('option');o.value=s;o.textContent=s;ds.appendChild(o);});
+}
+function adOnStation(){
+  let station=document.getElementById('ad-station').value;
+  let dg=document.getElementById('ad-gate');
+  dg.innerHTML='<option value="">Select Gate</option>';
+  dg.disabled=!station;
+  if(station){
+    let gates=Object.values(GATES_DB).filter(g=>g.station===station);
+    gates.forEach(g=>{let o=document.createElement('option');o.value=g.id;o.textContent=g.id+' — '+g.name+' ('+STATUS_LABELS[getStatus(g)]+')';dg.appendChild(o);});
+  }
+}
+function adOnGate(){
+  let gid=document.getElementById('ad-gate').value;
+  adminGateId=gid||null;
+  let wrap=document.getElementById('ad-live-status');
+  if(!gid){wrap.style.display='none';if(adminCdInterval)clearInterval(adminCdInterval);return;}
+  wrap.style.display='block';
+  updateAdminLive();
+  if(adminCdInterval)clearInterval(adminCdInterval);
+  adminCdInterval=setInterval(updateAdminLive,1000);
+}
+function updateAdminLive(){
+  if(!adminGateId)return;
+  let g=GATES_DB[adminGateId];if(!g)return;
+  let s=getStatus(g);
+  let rem=g.nextChange?g.nextChange-Date.now():0;
+  document.getElementById('ad-gate-name').textContent=g.station+' · '+g.name+' ('+g.id+')';
+  document.getElementById('ad-gate-cd').textContent=fmtCD(Math.max(rem,0));
+  document.getElementById('ad-gate-cd').style.color=STATUS_COLOR[s];
+  document.getElementById('ad-gate-lbl').textContent=STATUS_LABELS[s].toUpperCase();
+  document.getElementById('ad-gate-lbl').style.color=STATUS_COLOR[s];
+}
+function setGateStatus(newStatus){
+  if(!adminGateId){showToast('Select a gate first','t-red');return;}
+  let g=GATES_DB[adminGateId];
+  let old=getStatus(g);
+  g.status=newStatus==='DELAY'?'CLOSING':newStatus==='EMERGENCY'?'CLOSED':newStatus;
+  g.lastUpdated=Date.now();
+  g.lastUpdatedBy=document.getElementById('op-id').value||'Operator';
+  if(newStatus==='CLOSED'||newStatus==='EMERGENCY'){g.closedAt=Date.now();g.nextChange=Date.now()+g.avgMin*60000;}
+  else if(newStatus==='OPEN'){g.openedAt=Date.now();g.nextChange=Date.now()+(5+Math.random()*8)*60000;}
+  else if(newStatus==='CLOSING'){g.nextChange=Date.now()+90000;}
+  else if(newStatus==='OPENING'){g.nextChange=Date.now()+90000;}
+  let logEntry={gate:g.station+' · '+g.name,gateId:g.id,status:newStatus,time:fmtTime(Date.now()),op:g.lastUpdatedBy};
+  OP_LOGS.unshift(logEntry);
+  if(OP_LOGS.length>20)OP_LOGS.pop();
+  renderOpLogs();
+  updateAdminLive();
+  if(currentSearchState) renderGates();
+  updateHeroStats();
+  let msg=`${g.id} — ${STATUS_LABELS[newStatus]||newStatus}`;
+  let cls=newStatus==='OPEN'?'t-green':newStatus==='CLOSED'||newStatus==='EMERGENCY'?'t-red':'t-blue';
+  showToast(msg,cls);
+  // refresh gate dropdown label
+  adOnStation();
+  document.getElementById('ad-gate').value=adminGateId;
+}
+function renderOpLogs(){
+  let el=document.getElementById('op-log-list');
+  if(!OP_LOGS.length){el.innerHTML='<div style="color:var(--dim);font-size:12px;padding:12px 0">No activity yet</div>';return;}
+  el.innerHTML=OP_LOGS.slice(0,8).map(l=>`<div class="log-row">
+    <div>
+      <div class="log-gate">${l.gate} <span style="font-size:10px;color:var(--dim)">${l.gateId}</span></div>
+      <div class="log-time">by ${l.op} at ${l.time}</div>
+    </div>
+    <span class="status-badge ${STATUS_BADGE[l.status]||'badge-open'}">${STATUS_LABELS[l.status]||l.status}</span>
+  </div>`).join('');
+}
+
+// ── ANALYTICS ─────────────────────────────────────────────────────────────────
+
+function renderAnalytics(){
+  let gates=Object.values(GATES_DB);
+  let total=gates.length;
+  let open=gates.filter(g=>['OPEN','CLOSING'].includes(getStatus(g))).length;
+  let closed=gates.filter(g=>['CLOSED','OPENING'].includes(getStatus(g))).length;
+  let avgClosure=(gates.reduce((a,g)=>a+g.avgMin,0)/total).toFixed(1);
+  let states=Object.keys(INDIA_DATA).length;
+  let grid=document.getElementById('analytics-grid');
+  grid.innerHTML=[
+    {n:total,l:'Total Gates Tracked',c:'ac-blue'},
+    {n:open,l:'Currently Open',c:'ac-green'},
+    {n:closed,l:'Currently Closed',c:'ac-red'},
+    {n:avgClosure+' min',l:'Avg Closure Time',c:'ac-yellow'},
+    {n:states,l:'States Covered',c:'ac-purple'},
+    {n:'99.4%',l:'System Uptime',c:'ac-green'},
+  ].map(x=>`<div class="analytic-card ${x.c}"><div class="analytic-num">${x.n}</div><div class="analytic-label">${x.l}</div></div>`).join('');
+  let peaks=[{h:'06:00',v:45},{h:'07:30',v:72},{h:'08:30',v:95},{h:'09:30',v:80},{h:'12:00',v:40},{h:'17:00',v:85},{h:'18:30',v:98},{h:'19:30',v:75},{h:'22:00',v:30}];
+  document.getElementById('peak-bars').innerHTML=peaks.map(p=>{
+    let col=p.v>80?'var(--red)':p.v>60?'var(--yellow)':'var(--green)';
+    return `<div class="peak-bar-row">
+      <div class="peak-hr">${p.h}</div>
+      <div class="peak-track"><div class="peak-fill" style="width:${p.v}%;background:${col}"></div></div>
+      <div class="peak-pct">${p.v}%</div>
+    </div>`;
+  }).join('');
+  let stateCov=document.getElementById('state-coverage');
+  stateCov.innerHTML=Object.keys(INDIA_DATA).map(state=>{
+    let sg=Object.values(GATES_DB).filter(g=>g.state===state);
+    let so=sg.filter(g=>['OPEN','CLOSING'].includes(getStatus(g))).length;
+    let sc=sg.length-so;
+    return `<div class="state-card">
+      <div class="state-name">${state}</div>
+      <div class="state-meta">
+        <span class="s-open-c">● ${so} open</span>
+        <span class="s-closed-c">● ${sc} closed</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── HERO STATS ────────────────────────────────────────────────────────────────
+
+function updateHeroStats(){
+  let gates=Object.values(GATES_DB);
+  let open=gates.filter(g=>getStatus(g)==='OPEN').length;
+  let closed=gates.filter(g=>getStatus(g)==='CLOSED').length;
+  let closing=gates.filter(g=>['CLOSING','DELAY'].includes(getStatus(g))).length;
+  let total=gates.length;
+  document.getElementById('hero-stats').innerHTML=`
+    <div class="live-stat stat-open"><div class="stat-num">${open}</div><div class="stat-label">Gates Open</div></div>
+    <div class="live-stat stat-closed"><div class="stat-num">${closed}</div><div class="stat-label">Gates Closed</div></div>
+    <div class="live-stat stat-closing"><div class="stat-num">${closing}</div><div class="stat-label">Closing Soon</div></div>
+    <div class="live-stat stat-total"><div class="stat-num">${total}</div><div class="stat-label">Total Tracked</div></div>`;
+}
+
+// ── COUNTDOWNS ────────────────────────────────────────────────────────────────
+
+setInterval(()=>{
+  document.querySelectorAll('[id^="cd-"]').forEach(el=>{
+    let gid=el.id.replace('cd-','');
+    let g=GATES_DB[gid];
+    if(g){
+      let rem=g.nextChange?g.nextChange-Date.now():0;
+      el.textContent=fmtCD(Math.max(rem,0));
+    }
+  });
+  updateHeroStats();
+  if(document.getElementById('page-analytics').classList.contains('active')) renderAnalytics();
+},1000);
+
+// ── PAGE NAV ──────────────────────────────────────────────────────────────────
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  let labels={hero:'Home',search:'Search Gates',admin:'Operator',analytics:'Analytics'};
+  document.querySelectorAll('.nav-btn').forEach(b=>{if(b.textContent===labels[id])b.classList.add('active');});
+  if(id==='analytics') renderAnalytics();
+  window.scrollTo(0,0);
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+
+let toastTimer=null;
+function showToast(msg,cls='t-blue'){
+  let t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show '+(cls||'');
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+function subscribeGate(gid){
+  let g=GATES_DB[gid];
+  showToast('🔔 Subscribed to '+g.id+' alerts','t-blue');
+}
+
+// ── CURSOR ────────────────────────────────────────────────────────────────────
+
+(function(){
+  let cx=0,cy=0,rx=0,ry=0;
+  document.addEventListener('mousemove',e=>{
+    cx=e.clientX;cy=e.clientY;
+    document.getElementById('cursor').style.left=cx+'px';
+    document.getElementById('cursor').style.top=cy+'px';
+  });
+  function lerp(a,b,t){return a+(b-a)*t}
+  function animRing(){
+    rx=lerp(rx,cx,0.14);ry=lerp(ry,cy,0.14);
+    document.getElementById('cursor-ring').style.left=rx+'px';
+    document.getElementById('cursor-ring').style.top=ry+'px';
+    requestAnimationFrame(animRing);
+  }
+  animRing();
+  document.querySelectorAll('button,select,a,.gate-card,.filter-pill,.nav-btn,.action-btn').forEach(el=>{
+    el.addEventListener('mouseenter',()=>document.body.classList.add('hovering'));
+    el.addEventListener('mouseleave',()=>document.body.classList.remove('hovering'));
+  });
+})();
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+
+seedGates();
+populateStateSelects();
+updateHeroStats();
+</script>
+</body>
+</html>
